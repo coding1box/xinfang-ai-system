@@ -13,7 +13,15 @@ export default function PersonnelSystem() {
   const [chatMessage, setChatMessage] = useState("")
   const [activeTab, setActiveTab] = useState("社会关系")
   const [activeDetailTab, setActiveDetailTab] = useState("多维信息")
-  const [messages, setMessages] = useState([
+  // 在useState定义messages时，添加loading可选属性
+  type ChatMessage = {
+    type: "ai" | "user";
+    content: string;
+    timestamp: string;
+    loading?: boolean;
+  };
+
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
       type: "ai",
       content:
@@ -108,37 +116,86 @@ export default function PersonnelSystem() {
 
   const tabs = ["社会关系", "出行信息", "相关情况"]
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (chatMessage.trim()) {
-      // 添加用户消息
       const userMessage = {
         type: "user",
         content: chatMessage,
         timestamp: new Date().toLocaleTimeString(),
-      }
+      };
 
-      setMessages((prev) => [...prev, userMessage])
-      setChatMessage("")
-
-      // 模拟AI回复
-      setTimeout(() => {
-        const aiResponses = [
-          "根据您的问题，我为您查询了相关政策信息...",
-          "关于土地征收补偿标准，根据最新政策规定...",
-          "我已为您分析了张三的信访历史，建议采取以下措施...",
-          "根据风险评估结果，建议加强沟通协调...",
-        ]
-
-        const randomResponse = aiResponses[Math.floor(Math.random() * aiResponses.length)]
-
-        const aiMessage = {
+      // 先加入用户消息和loading消息
+      setMessages((prev) => [
+        ...prev,
+        userMessage,
+        {
           type: "ai",
-          content: randomResponse,
+          content: "回复生成中，请稍候",
           timestamp: new Date().toLocaleTimeString(),
-        }
+          loading: true, // 用于区分loading消息
+        },
+      ]);
+      setChatMessage("");
 
-        setMessages((prev) => [...prev, aiMessage])
-      }, 1000)
+      try {
+        const res = await fetch("http://localhost:3001/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: chatMessage,
+            history: messages
+              .map((m) => ({
+                role: m.type === "ai" ? "assistant" : "user",
+                content: m.content,
+              }))
+              .concat([{ role: "user", content: chatMessage }]), // 保证历史完整
+          }),
+        });
+        const data = await res.json();
+
+        // 用AI回复替换最后一条“AI分析中……”消息
+        setMessages((prev) => {
+          const lastLoadingIdx = prev.findIndex((m) => m.loading);
+          if (lastLoadingIdx !== -1) {
+            const newMessages = [...prev];
+            newMessages[lastLoadingIdx] = {
+              type: "ai",
+              content: data.reply,
+              timestamp: new Date().toLocaleTimeString(),
+            };
+            return newMessages;
+          }
+          return [
+            ...prev,
+            {
+              type: "ai",
+              content: data.reply,
+              timestamp: new Date().toLocaleTimeString(),
+            },
+          ];
+        });
+      } catch (err) {
+        setMessages((prev) => {
+          const lastLoadingIdx = prev.findIndex((m) => m.loading);
+          if (lastLoadingIdx !== -1) {
+            const newMessages = [...prev];
+            newMessages[lastLoadingIdx] = {
+              type: "ai",
+              content: "AI服务暂时不可用，请稍后再试。",
+              timestamp: new Date().toLocaleTimeString(),
+            };
+            return newMessages;
+          }
+          return [
+            ...prev,
+            {
+              type: "ai",
+              content: "AI服务暂时不可用，请稍后再试。",
+              timestamp: new Date().toLocaleTimeString(),
+            },
+          ];
+        });
+      }
     }
   }
 
@@ -385,11 +442,31 @@ export default function PersonnelSystem() {
 
         <div className="flex-1 p-4 space-y-4 overflow-y-auto">
           {messages.map((message, index) => (
-            <div key={index} className={`${message.type === "ai" ? "bg-blue-50" : "bg-gray-100"} rounded-lg p-3`}>
-              <div className="flex items-start space-x-2">
-                {message.type === "ai" && <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>}
+            <div
+              key={index}
+              className={
+                message.loading
+                  ? "bg-blue-100 rounded-lg p-3 flex justify-center items-center min-h-[48px]"
+                  : message.type === "ai"
+                  ? "bg-blue-50 rounded-lg p-3"
+                  : "bg-gray-100 rounded-lg p-3"
+              }
+            >
+              <div className="flex items-start space-x-2 w-full">
+                {message.type === "ai" && !message.loading && (
+                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                )}
                 <div className="flex-1">
-                  <p className="text-sm text-gray-700">{message.content}</p>
+                  {message.loading ? (
+                    <div className="flex items-center justify-center gap-2 text-blue-700 font-medium">
+                      <span>{message.content}</span>
+                      <span className="inline-block animate-bounce">●</span>
+                      <span className="inline-block animate-bounce delay-150">●</span>
+                      <span className="inline-block animate-bounce delay-300">●</span>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-700">{message.content}</p>
+                  )}
                   <span className="text-xs text-gray-500 mt-1 block">{message.timestamp}</span>
                 </div>
               </div>
