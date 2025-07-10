@@ -398,6 +398,18 @@ export default function PersonnelSystem() {
         </div>
 
         <div className="p-4 border-t border-gray-200">
+          <div className="flex items-center justify-between mb-2 text-xs text-gray-500">
+            <button
+              onClick={() => setIsDeepThinking(!isDeepThinking)}
+              className={`flex items-center space-x-1 px-2 py-1 rounded transition-colors ${
+                isDeepThinking ? "bg-blue-100 text-blue-700" : "hover:bg-gray-100"
+              }`}
+            >
+              <StarsIcon className="w-3 h-3" />
+              <span>深度思考</span>
+            </button>
+            <span>0/2000</span>
+          </div>
           <div className="flex space-x-2">
             <Input
               placeholder="请输入你的问题"
@@ -409,18 +421,6 @@ export default function PersonnelSystem() {
             <Button size="sm" className="px-3" onClick={handleSendMessage}>
               <Send className="w-4 h-4" />
             </Button>
-          </div>
-          <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
-            <button
-              onClick={() => setIsDeepThinking(!isDeepThinking)}
-              className={`flex items-center space-x-1 px-2 py-1 rounded transition-colors ${
-                isDeepThinking ? "bg-blue-100 text-blue-700" : "hover:bg-gray-100"
-              }`}
-            >
-              <StarsIcon className="w-3 h-3" />
-              <span>深度思考</span>
-            </button>
-            <span>0/2000</span>
           </div>
           <p className="text-xs text-gray-400 mt-2">内容由黔灵AI生成，无法确保信息完全准确，仅供参考</p>
         </div>
