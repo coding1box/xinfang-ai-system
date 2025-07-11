@@ -13,7 +13,7 @@ export default function PersonnelSystem() {
   const [chatMessage, setChatMessage] = useState("")
   const [activeTab, setActiveTab] = useState("社会关系")
   const [activeDetailTab, setActiveDetailTab] = useState("多维信息")
-  
+  // 在useState定义messages时，添加loading可选属性
   type ChatMessage = {
     type: "ai" | "user";
     content: string;
@@ -154,71 +154,70 @@ export default function PersonnelSystem() {
 相关情况：${relatedInfo.map(s => s.category).join('、')}
 
 请基于以上信息，为信访人员提供专业的政策咨询和流程指导。
-        `;
+      `;
 
-        const res = await fetch("https://xfrisk.zeabur.app/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: chatMessage,
-            history: [
-              {
-                role: "system",
-                content: personnelInfo
-              },
-              ...messages.map(m => ({
-                role: m.type === "ai" ? "assistant" : "user",
-                content: m.content
-              }))
-            ]
-          }),
-        });
-        const data = await res.json();
+      const res = await fetch("http://localhost:3001/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: chatMessage,
+          history: [
+            {
+              role: "system",
+              content: personnelInfo
+            },
+            ...messages.map(m => ({
+              role: m.type === "ai" ? "assistant" : "user",
+              content: m.content
+            }))
+          ]
+        }),
+      });
+      const data = await res.json();
 
-        setMessages((prev) => {
-          const lastLoadingIdx = prev.findIndex((m) => m.loading);
-          if (lastLoadingIdx !== -1) {
-            const newMessages = [...prev];
-            newMessages[lastLoadingIdx] = {
-              type: "ai" as const,
-              content: data.reply,
-              timestamp: new Date().toLocaleTimeString(),
-            };
-            return newMessages;
-          }
-          return [
-            ...prev,
-            {
-              type: "ai" as const,
-              content: data.reply,
-              timestamp: new Date().toLocaleTimeString(),
-            },
-          ];
-        });
-      } catch (err) {
-        setMessages((prev) => {
-          const lastLoadingIdx = prev.findIndex((m) => m.loading);
-          if (lastLoadingIdx !== -1) {
-            const newMessages = [...prev];
-            newMessages[lastLoadingIdx] = {
-              type: "ai" as const,
-              content: "AI服务暂时不可用，请稍后再试。",
-              timestamp: new Date().toLocaleTimeString(),
-            };
-            return newMessages;
-          }
-          return [
-            ...prev,
-            {
-              type: "ai" as const,
-              content: "AI服务暂时不可用，请稍后再试。",
-              timestamp: new Date().toLocaleTimeString(),
-            },
-          ];
-        });
-      }
+      setMessages((prev) => {
+        const lastLoadingIdx = prev.findIndex((m) => m.loading);
+        if (lastLoadingIdx !== -1) {
+          const newMessages = [...prev];
+          newMessages[lastLoadingIdx] = {
+            type: "ai" as const,
+            content: data.reply,
+            timestamp: new Date().toLocaleTimeString(),
+          };
+          return newMessages;
+        }
+        return [
+          ...prev,
+          {
+            type: "ai" as const,
+            content: data.reply,
+            timestamp: new Date().toLocaleTimeString(),
+          },
+        ];
+      });
+    } catch (err) {
+      setMessages((prev) => {
+        const lastLoadingIdx = prev.findIndex((m) => m.loading);
+        if (lastLoadingIdx !== -1) {
+          const newMessages = [...prev];
+          newMessages[lastLoadingIdx] = {
+            type: "ai" as const,
+            content: "AI服务暂时不可用，请稍后再试。",
+            timestamp: new Date().toLocaleTimeString(),
+          };
+          return newMessages;
+        }
+        return [
+          ...prev,
+          {
+            type: "ai" as const,
+            content: "AI服务暂时不可用，请稍后再试。",
+            timestamp: new Date().toLocaleTimeString(),
+          },
+        ];
+      });
     }
-  };
+  }
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
