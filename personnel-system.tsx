@@ -153,24 +153,32 @@ export default function PersonnelSystem() {
 出行信息：最近出行${travelInfo.length}次，主要目的为${travelInfo.map(t => t.purpose).join('、')}
 相关情况：${relatedInfo.map(s => s.category).join('、')}
 
-请基于以上信息，为信访人员提供专业的政策咨询和流程指导。
+请基于以上信息，帮助工作人员进一步了解该信访人员的情况，或就相关政策、风险、处置建议等问题提供专业解答。用户是工作人员，不是信访人员本人。
         `;
 
-        const res = await fetch("https://xfrisk.zeabur.app/api/chat", {
+        // 只传递有实际内容的历史消息，且不包含 loading 消息和初始欢迎语
+        const validHistory = messages
+          .filter(m => !m.loading && m.content && m.content !== "您好！我是信访AI助手，能为您提供政策咨询、信访流程指导等服务。请详细描述您的需求，我会尽力为您提供帮助。")
+          .slice(-10)
+
+        const historyForApi = [
+          {
+            role: "system",
+            content: personnelInfo
+          },
+          ...validHistory.map(m => ({
+            role: m.type === "ai" ? "assistant" : "user",
+            content: m.content
+          })),
+          ...(validHistory.length === 0 ? [{ role: "user", content: chatMessage }] : [])
+        ];
+
+        const res = await fetch("https://xfrisk-backend-1.onrender.com/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             message: chatMessage,
-            history: [
-              {
-                role: "system",
-                content: personnelInfo
-              },
-              ...messages.map(m => ({
-                role: m.type === "ai" ? "assistant" : "user",
-                content: m.content
-              }))
-            ]
+            history: historyForApi
           }),
         });
         const data = await res.json();
