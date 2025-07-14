@@ -129,7 +129,7 @@ export default function PersonnelSystem() {
         userMessage,
         {
           type: "ai" as const,
-          content: "回复生成中，请稍候",
+          content: "",
           timestamp: new Date().toLocaleTimeString(),
           loading: true,
         },
@@ -173,7 +173,8 @@ export default function PersonnelSystem() {
           ...(validHistory.length === 0 ? [{ role: "user", content: chatMessage }] : [])
         ];
 
-        const res = await fetch("https://xfrisk-backend-1.onrender.com/api/chat", {
+        // 使用流式API
+        const response = await fetch("https://xfrisk-backend.onrender.com/api/chat/stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -181,29 +182,77 @@ export default function PersonnelSystem() {
             history: historyForApi
           }),
         });
-        const data = await res.json();
 
-        setMessages((prev) => {
-          const lastLoadingIdx = prev.findIndex((m) => m.loading);
-          if (lastLoadingIdx !== -1) {
-            const newMessages = [...prev];
-            newMessages[lastLoadingIdx] = {
-              type: "ai" as const,
-              content: data.reply,
-              timestamp: new Date().toLocaleTimeString(),
-            };
-            return newMessages;
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+
+        if (reader) {
+          let accumulatedContent = "";
+          
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const dataStr = line.slice(6);
+                if (dataStr.trim() === '[DONE]') {
+                  // 流式传输完成
+                  setMessages((prev) => {
+                    const lastLoadingIdx = prev.findIndex((m) => m.loading);
+                    if (lastLoadingIdx !== -1) {
+                      const newMessages = [...prev];
+                      newMessages[lastLoadingIdx] = {
+                        type: "ai" as const,
+                        content: accumulatedContent,
+                        timestamp: new Date().toLocaleTimeString(),
+                      };
+                      return newMessages;
+                    }
+                    return prev;
+                  });
+                  return;
+                }
+
+                try {
+                  const data = JSON.parse(dataStr);
+                  if (data.content) {
+                    accumulatedContent += data.content;
+                    // 实时更新消息内容
+                    setMessages((prev) => {
+                      const lastLoadingIdx = prev.findIndex((m) => m.loading);
+                      if (lastLoadingIdx !== -1) {
+                        const newMessages = [...prev];
+                        newMessages[lastLoadingIdx] = {
+                          type: "ai" as const,
+                          content: accumulatedContent,
+                          timestamp: new Date().toLocaleTimeString(),
+                          loading: true,
+                        };
+                        return newMessages;
+                      }
+                      return prev;
+                    });
+                  }
+                  if (data.error) {
+                    throw new Error(data.error);
+                  }
+                } catch (e) {
+                  console.error('Error parsing stream data:', e);
+                }
+              }
+            }
           }
-          return [
-            ...prev,
-            {
-              type: "ai" as const,
-              content: data.reply,
-              timestamp: new Date().toLocaleTimeString(),
-            },
-          ];
-        });
+        }
       } catch (err) {
+        console.error('Stream error:', err);
         setMessages((prev) => {
           const lastLoadingIdx = prev.findIndex((m) => m.loading);
           if (lastLoadingIdx !== -1) {
@@ -487,11 +536,19 @@ export default function PersonnelSystem() {
                 )}
                 <div className="flex-1">
                   {message.loading ? (
-                    <div className="flex items-center justify-center gap-2 text-blue-700 font-medium">
+                    <div className="text-sm text-gray-700">
                       <span>{message.content}</span>
-                      <span className="inline-block animate-bounce">●</span>
-                      <span className="inline-block animate-bounce delay-150">●</span>
-                      <span className="inline-block animate-bounce delay-300">●</span>
+                      {message.content === "" && (
+                        <div className="flex items-center justify-center gap-2 text-blue-700 font-medium">
+                          <span>正在思考中</span>
+                          <span className="inline-block animate-bounce">●</span>
+                          <span className="inline-block animate-bounce delay-150">●</span>
+                          <span className="inline-block animate-bounce delay-300">●</span>
+                        </div>
+                      )}
+                      {message.content !== "" && (
+                        <span className="inline-block w-2 h-4 bg-blue-500 ml-1 animate-pulse"></span>
+                      )}
                     </div>
                   ) : (
                     <p className="text-sm text-gray-700">{message.content}</p>
