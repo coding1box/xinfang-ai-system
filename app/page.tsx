@@ -282,12 +282,6 @@ export default function Home() {
       handleSendMessage()
     }
   }
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value
@@ -818,7 +812,6 @@ export default function Home() {
               </div>
             </div>
           ))}
-          <div ref={messagesEndRef} />
         </div>
         <div className="p-4 border-t border-gray-200">
           <div className="flex items-center justify-between mb-2 text-xs text-gray-500">

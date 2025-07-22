@@ -214,31 +214,62 @@ export function RiskAssessment({ showRiskAssessment, riskData, overallScore }: R
               exit={{ opacity: 0, y: -20 }}
             >
               {/* 详情内容同前 */}
-              <div className="h-48 w-full mb-4">
+              <div className="h-72 w-full mb-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart data={data} margin={{ top: 30, right: 30, bottom: 30, left: 30 }}>
-                    <PolarGrid stroke="#e5e7eb" strokeWidth={1} gridType="polygon" radialLines={true} />
+                  <RadarChart data={data} margin={{ top: 40, right: 40, bottom: 40, left: 40 }}>
+                    {/* 主网格线加粗，径向线淡灰色虚线 */}
+                    <PolarGrid stroke="#cbd5e1" strokeWidth={2} gridType="polygon" radialLines={true} />
                     <PolarAngleAxis
                       dataKey="dimension"
-                      tick={{ fontSize: 11, fill: "#374151", fontWeight: 500 }}
-                      className="text-xs"
+                      tick={props => (
+                        <g>
+                          <rect x={props.x-32} y={props.y-14} width="64" height="20" rx="8" fill="#f1f5f9" />
+                          <text x={props.x} y={props.y+2} textAnchor="middle" fontSize="13" fontWeight="bold" fill="#1e293b">{props.payload.value}</text>
+                        </g>
+                      )}
                     />
                     <PolarRadiusAxis
                       angle={90}
                       domain={[0, 100]}
-                      tick={{ fontSize: 9, fill: "#9ca3af" }}
+                      tick={{ fontSize: 11, fill: "#64748b" }}
                       tickCount={5}
                       axisLine={false}
                       tickLine={false}
+                      strokeDasharray="3 3"
                     />
+                    {/* 渐变色定义 */}
+                    <defs>
+                      <linearGradient id="radarStroke" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#2563eb" />
+                        <stop offset="100%" stopColor="#38bdf8" />
+                      </linearGradient>
+                      <radialGradient id="radarFill" cx="50%" cy="50%" r="80%">
+                        <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.5" />
+                        <stop offset="100%" stopColor="#2563eb" stopOpacity="0.2" />
+                      </radialGradient>
+                    </defs>
                     <Radar
                       name="风险分值"
                       dataKey="value"
-                      stroke="#3b82f6"
-                      fill="#3b82f6"
-                      fillOpacity={0.25}
-                      strokeWidth={2.5}
-                      dot={{ fill: "#1d4ed8", strokeWidth: 2, r: 5, fillOpacity: 1 }}
+                      stroke="url(#radarStroke)"
+                      fill="url(#radarFill)"
+                      fillOpacity={0.4}
+                      strokeWidth={3}
+                      dot={({ cx, cy, value, index }) => {
+                        // 计算顶点坐标
+                        const angle = (Math.PI * 2 / data.length) * index - Math.PI / 2;
+                        const r = (value / 100) * 100; // 100为最大半径
+                        const x = cx + r * Math.cos(angle);
+                        const y = cy + r * Math.sin(angle);
+                        return (
+                          <g key={index}>
+                            <circle cx={x} cy={y} r={8} fill="#fff" stroke="#2563eb" strokeWidth={3} />
+                            <circle cx={x} cy={y} r={5} fill="#2563eb" />
+                            {/* 分值显示 */}
+                            <text x={x} y={y-14} textAnchor="middle" fontSize="13" fill="#2563eb" fontWeight="bold">{value}</text>
+                          </g>
+                        )
+                      }}
                     />
                   </RadarChart>
                 </ResponsiveContainer>
